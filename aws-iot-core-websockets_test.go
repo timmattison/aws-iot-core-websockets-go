@@ -73,7 +73,11 @@ func TestGetWebSocketUrl(t *testing.T) {
 		Endpoint:  endpoint,
 	}
 
-	wsUrl, _ := AwsIotWsUrl(ctx, iotWsConfig)
+	wsUrl, err := AwsIotWsUrl(ctx, iotWsConfig)
+
+	if err != nil {
+		t.Errorf("Could not get WebSocket URL. [%s]", err.Error())
+	}
 
 	if wsUrl == "" {
 		t.Errorf("Could not get WebSocket URL")
