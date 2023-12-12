@@ -10,6 +10,19 @@ I created a similar library for Java when I was working at AWS and I wanted to d
 
 # Version history
 
+## 0.2.0
+
+**TL;DR - now just pass in the full endpoint DNS name, not just the host!**
+
+Using the true endpoint value returned from AWS IoT's describe endpoint call instead of using the host name (the
+customer specific hostname) and then building up the URL from that.
+
+## 0.1.0
+
+**TL;DR - now pass in the IotWsConfig struct**
+
+Created a struct to pass in the parameters to avoid getting them out of order
+
 ## 0.0.1
 
 Original version from https://github.com/aws/aws-sdk-go/issues/2485#issuecomment-469366846 with some tests but no modifications.

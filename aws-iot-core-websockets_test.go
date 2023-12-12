@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iot"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"strings"
 	"testing"
 )
 
@@ -69,12 +68,6 @@ func TestGetWebSocketUrl(t *testing.T) {
 		t.Errorf("Could not get endpoint. [%s]", err.Error())
 	}
 
-	host, _, found := strings.Cut(endpoint, ".")
-
-	if !found {
-		t.Errorf("Could not parse endpoint. [%s]", endpoint)
-	}
-
 	region := cfg.Region
 	creds, err := cfg.Credentials.Retrieve(context.TODO())
 
@@ -83,7 +76,7 @@ func TestGetWebSocketUrl(t *testing.T) {
 		SecretKey:    creds.SecretAccessKey,
 		SessionToken: creds.SessionToken,
 		Region:       region,
-		Endpoint:     host,
+		Endpoint:     endpoint,
 	}
 
 	wsUrl := AwsIotWsUrl(iotWsConfig)
@@ -108,12 +101,6 @@ func TestWebSocketConnect(t *testing.T) {
 		t.Errorf("Could not get endpoint. [%s]", err.Error())
 	}
 
-	host, _, found := strings.Cut(endpoint, ".")
-
-	if !found {
-		t.Errorf("Could not parse endpoint. [%s]", endpoint)
-	}
-
 	region := cfg.Region
 	creds, err := cfg.Credentials.Retrieve(context.TODO())
 
@@ -122,7 +109,7 @@ func TestWebSocketConnect(t *testing.T) {
 		SecretKey:    creds.SecretAccessKey,
 		SessionToken: creds.SessionToken,
 		Region:       region,
-		Endpoint:     host,
+		Endpoint:     endpoint,
 	}
 
 	wsUrl := AwsIotWsUrl(iotWsConfig)
