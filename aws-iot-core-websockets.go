@@ -44,13 +44,13 @@ func AwsIotWsUrl(iotWsConfig IotWsConfig) string {
 	stringToSign := awsSignString(query, iotWsConfig.Endpoint, dateLong, alg, scope)
 	signature := fmt.Sprintf("%x", awsHmac(signKey, []byte(stringToSign)))
 
-	wsurl := fmt.Sprintf("wss://%s/mqtt?%s&X-Amz-Signature=%s", iotWsConfig.Endpoint, query, signature)
+	wsUrl := fmt.Sprintf("wss://%s/mqtt?%s&X-Amz-Signature=%s", iotWsConfig.Endpoint, query, signature)
 
 	if iotWsConfig.SessionToken != "" {
-		wsurl = fmt.Sprintf("%s&X-Amz-Security-Token=%s", wsurl, url.QueryEscape(iotWsConfig.SessionToken))
+		wsUrl = fmt.Sprintf("%s&X-Amz-Security-Token=%s", wsUrl, url.QueryEscape(iotWsConfig.SessionToken))
 	}
 
-	return wsurl
+	return wsUrl
 }
 
 func awsQueryParams(q [][2]string) string {
@@ -102,6 +102,6 @@ func awsSignKey(secretKey string, dateShort string, region string, serviceName s
 
 func awsSha(in string) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "%s", in)
+	h.Write([]byte(in))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
