@@ -137,7 +137,7 @@ func TestWebSocketConnectWithEndpointDiscovery(t *testing.T) {
 	}
 }
 
-func TestWebSocketConnectWithCustomCertificatePool(t *testing.T) {
+func TestWebSocketConnectWithBadCustomCertificatePool(t *testing.T) {
 	ctx := context.Background()
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -155,6 +155,7 @@ func TestWebSocketConnectWithCustomCertificatePool(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not get MQTT config. [%s]", err.Error())
+		return
 	}
 
 	opts.SetClientID("test")
@@ -167,9 +168,50 @@ func TestWebSocketConnectWithCustomCertificatePool(t *testing.T) {
 
 	if token.Error() == nil {
 		t.Errorf("Connected to WebSocket URL without a valid root CA. This is a bug.")
+		return
 	}
 
 	if !strings.Contains(token.Error().Error(), "x509: certificate signed by unknown authority") {
 		t.Errorf("Didn't get the expected error for this test. Expected TLS error, got [%s]", token.Error())
+		return
+	}
+}
+
+func TestWebSocketConnectWithGoodCustomCertificatePool(t *testing.T) {
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+
+	if err != nil {
+		panic("configuration error, " + err.Error())
+	}
+
+	iotWsConfig := IotWsConfig{
+		AwsConfig: cfg,
+	}
+
+	certificatePool := x509.NewCertPool()
+
+	if ok := certificatePool.AppendCertsFromPEM([]byte(rootCa)); !ok {
+		t.Errorf("failed to add root CA certificate to certificate pool")
+	}
+
+	opts, err := AwsIotWsMqttOptionsCustom(ctx, iotWsConfig, certificatePool)
+
+	if err != nil {
+		t.Errorf("Could not get MQTT config. [%s]", err.Error())
+	}
+
+	opts.SetClientID("test")
+
+	client := mqtt.NewClient(opts)
+
+	token := client.Connect()
+
+	token.Wait()
+
+	if token.Error() != nil {
+		t.Errorf("Failed to connect to WebSocket URL with a valid, custom root CA. This is a bug.")
+		return
 	}
 }
