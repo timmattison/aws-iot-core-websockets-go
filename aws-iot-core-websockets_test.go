@@ -78,11 +78,15 @@ func TestGetWebSocketUrl(t *testing.T) {
 	region := cfg.Region
 	creds, err := cfg.Credentials.Retrieve(context.TODO())
 
-	accessKey := creds.AccessKeyID
-	secretKey := creds.SecretAccessKey
-	sessionToken := creds.SessionToken
+	iotWsConfig := IotWsConfig{
+		AccessKey:    creds.AccessKeyID,
+		SecretKey:    creds.SecretAccessKey,
+		SessionToken: creds.SessionToken,
+		Region:       region,
+		Endpoint:     host,
+	}
 
-	wsUrl := AwsIotWsUrl(accessKey, secretKey, sessionToken, region, host)
+	wsUrl := AwsIotWsUrl(iotWsConfig)
 
 	if wsUrl == "" {
 		t.Errorf("Could not get WebSocket URL")
@@ -113,11 +117,15 @@ func TestWebSocketConnect(t *testing.T) {
 	region := cfg.Region
 	creds, err := cfg.Credentials.Retrieve(context.TODO())
 
-	accessKey := creds.AccessKeyID
-	secretKey := creds.SecretAccessKey
-	sessionToken := creds.SessionToken
+	iotWsConfig := IotWsConfig{
+		AccessKey:    creds.AccessKeyID,
+		SecretKey:    creds.SecretAccessKey,
+		SessionToken: creds.SessionToken,
+		Region:       region,
+		Endpoint:     host,
+	}
 
-	wsUrl := AwsIotWsUrl(accessKey, secretKey, sessionToken, region, host)
+	wsUrl := AwsIotWsUrl(iotWsConfig)
 
 	certificatePool, err := createCertificatePool()
 
