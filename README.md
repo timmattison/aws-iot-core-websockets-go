@@ -3,6 +3,8 @@
 Connecting to AWS IoT Core with certificates is great. But sometimes you just want to use WebSockets with your AWS
 credentials. This library makes it easy to do that.
 
+[If you need something similar in Java I wrote that a few years back while at AWS and have my own personal fork of it](https://github.com/timmattison/aws-iot-core-websockets-java).
+
 ## This is not my code originally!
 
 [This code was posted in a GitHub issue years ago](https://github.com/aws/aws-sdk-go/issues/2485#issuecomment-469366846).
