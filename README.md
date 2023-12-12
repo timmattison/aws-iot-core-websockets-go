@@ -12,6 +12,16 @@ I created a similar library for Java when I was working at AWS and I wanted to d
 
 # Version history
 
+## 0.3.1
+
+Added `AwsIotWsMqttOptionsCustom` and `AwsIotWsMqttOptions` to get the MQTT options for AWS IoT Core.
+
+`AwsIotWsMqttOptionsCustom` allows the user to specify their own certificate pool.
+
+`AwsIotWsMqttOptions` uses the AWS root CA certificate automatically.
+
+Both new functions will retrieve the endpoint automatically if it is not specified in the `IotWsConfig` struct.
+
 ## 0.3.0
 
 **TL;DR - pass in the AWS.Config and endpoint**
