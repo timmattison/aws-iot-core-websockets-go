@@ -2,55 +2,60 @@ package aws_iot_core_websockets_go
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"net/url"
 	"strings"
 	"time"
 )
 
 type IotWsConfig struct {
-	AccessKey    string
-	SecretKey    string
-	SessionToken string
-	Region       string
-	Endpoint     string
+	AwsConfig aws.Config
+	Endpoint  string
 }
 
 const (
 	emptyStringHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
-func AwsIotWsUrl(iotWsConfig IotWsConfig) string {
+func AwsIotWsUrl(ctx context.Context, iotWsConfig IotWsConfig) (string, error) {
+	credentials, err := iotWsConfig.AwsConfig.Credentials.Retrieve(ctx)
+
+	if err != nil {
+		return "", err
+	}
+
 	// according to docs, time must be within 5min of actual time (or at least according to AWS servers)
 	now := time.Now().UTC()
 
 	dateLong := now.Format("20060102T150405Z")
 	dateShort := dateLong[:8]
 	serviceName := "iotdevicegateway"
-	scope := fmt.Sprintf("%s/%s/%s/aws4_request", dateShort, iotWsConfig.Region, serviceName)
+	scope := fmt.Sprintf("%s/%s/%s/aws4_request", dateShort, iotWsConfig.AwsConfig.Region, serviceName)
 	alg := "AWS4-HMAC-SHA256"
 	q := [][2]string{
 		{"X-Amz-Algorithm", alg},
-		{"X-Amz-Credential", iotWsConfig.AccessKey + "/" + scope},
+		{"X-Amz-Credential", credentials.AccessKeyID + "/" + scope},
 		{"X-Amz-Date", dateLong},
 		{"X-Amz-SignedHeaders", "host"},
 	}
 
 	query := awsQueryParams(q)
 
-	signKey := awsSignKey(iotWsConfig.SecretKey, dateShort, iotWsConfig.Region, serviceName)
+	signKey := awsSignKey(credentials.SecretAccessKey, dateShort, iotWsConfig.AwsConfig.Region, serviceName)
 	stringToSign := awsSignString(query, iotWsConfig.Endpoint, dateLong, alg, scope)
 	signature := fmt.Sprintf("%x", awsHmac(signKey, []byte(stringToSign)))
 
 	wsUrl := fmt.Sprintf("wss://%s/mqtt?%s&X-Amz-Signature=%s", iotWsConfig.Endpoint, query, signature)
 
-	if iotWsConfig.SessionToken != "" {
-		wsUrl = fmt.Sprintf("%s&X-Amz-Security-Token=%s", wsUrl, url.QueryEscape(iotWsConfig.SessionToken))
+	if credentials.SessionToken != "" {
+		wsUrl = fmt.Sprintf("%s&X-Amz-Security-Token=%s", wsUrl, url.QueryEscape(credentials.SessionToken))
 	}
 
-	return wsUrl
+	return wsUrl, nil
 }
 
 func awsQueryParams(q [][2]string) string {
