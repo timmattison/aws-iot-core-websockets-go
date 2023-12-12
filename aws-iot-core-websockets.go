@@ -25,7 +25,7 @@ const (
 	emptyStringHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
-// AwsIotWsMqttOptions creates a new MQTT client options object for connecting to AWS IoT Core via WebSockets.
+// AwsIotWsMqttOptionsCustom AwsIotWsMqttOptions creates a new MQTT client options object for connecting to AWS IoT Core via WebSockets.
 // The options object will have the broker URL and TLS config set but not the client ID. The TLS config will
 // utilize the certificate pool passed into it but will not use the AWS root CA certificate automatically.
 func AwsIotWsMqttOptionsCustom(ctx context.Context, iotWsConfig IotWsConfig, certificatePool *x509.CertPool) (*mqtt.ClientOptions, error) {
