@@ -100,7 +100,11 @@ func TestWebSocketConnect(t *testing.T) {
 		Endpoint:  endpoint,
 	}
 
-	wsUrl, _ := AwsIotWsUrl(ctx, iotWsConfig)
+	wsUrl, err := AwsIotWsUrl(ctx, iotWsConfig)
+
+	if err != nil {
+		t.Errorf("Could not get WebSocket URL. [%s]", err.Error())
+	}
 
 	certificatePool, err := createCertificatePool()
 
