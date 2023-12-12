@@ -95,3 +95,33 @@ func TestWebSocketConnect(t *testing.T) {
 		t.Errorf("Could not connect to WebSocket URL. [%s]", token.Error())
 	}
 }
+
+func TestWebSocketConnectWithEndpointDiscovery(t *testing.T) {
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+
+	if err != nil {
+		panic("configuration error, " + err.Error())
+	}
+
+	iotWsConfig := IotWsConfig{
+		AwsConfig: cfg,
+	}
+
+	opts, err := AwsIotWsMqttOptions(ctx, iotWsConfig)
+
+	if err != nil {
+		t.Errorf("Could not get MQTT config. [%s]", err.Error())
+	}
+
+	opts.SetClientID("test")
+
+	client := mqtt.NewClient(opts)
+
+	token := client.Connect()
+
+	if token.Wait() && token.Error() != nil {
+		t.Errorf("Could not connect to WebSocket URL. [%s]", token.Error())
+	}
+}
