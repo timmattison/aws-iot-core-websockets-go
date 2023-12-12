@@ -10,9 +10,15 @@ I created a similar library for Java when I was working at AWS and I wanted to d
 
 # Version history
 
+## 0.3.0
+
+**TL;DR - pass in the AWS.Config and endpoint**
+
+Passing in the AWS.Config instead of having the user copy the data out makes more sense.
+
 ## 0.2.0
 
-**TL;DR - now just pass in the full endpoint DNS name, not just the host!**
+**TL;DR - now just pass in the full endpoint DNS name, not just the host**
 
 Using the true endpoint value returned from AWS IoT's describe endpoint call instead of using the host name (the
 customer specific hostname) and then building up the URL from that.
