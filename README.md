@@ -12,7 +12,16 @@ I created a similar library for Java when I was working at AWS and I wanted to d
 
 # Version history
 
+## 0.4.0
+
+**TL;DR - new pattern to get the MQTT config directly**
+
+Switched to functional options pattern so the setup is easier to understand and use. Everything other
+than the context can be set up automatically for the user.
+
 ## 0.3.1
+
+**TL;DR - new functions to get the MQTT config directly**
 
 Added `AwsIotWsMqttOptionsCustom` and `AwsIotWsMqttOptions` to get the MQTT options for AWS IoT Core.
 

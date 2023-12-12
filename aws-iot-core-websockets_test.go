@@ -2,11 +2,9 @@ package aws_iot_core_websockets_go
 
 import (
 	"context"
-	"crypto/x509"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"strings"
 	"testing"
 )
 
@@ -31,7 +29,7 @@ func TestCredentialsAreValid(t *testing.T) {
 	}
 }
 
-func TestGetWebSocketUrl(t *testing.T) {
+func TestWithManualConfigAndManualEndpointAndManualCertPool(t *testing.T) {
 	ctx := context.Background()
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -47,25 +45,26 @@ func TestGetWebSocketUrl(t *testing.T) {
 		return
 	}
 
-	iotWsConfig := IotWsConfig{
-		AwsConfig: cfg,
-		Endpoint:  endpoint,
-	}
-
-	wsUrl, err := AwsIotWsUrl(ctx, iotWsConfig)
+	certPool, err := createCertificatePool()
 
 	if err != nil {
-		t.Errorf("Could not get WebSocket URL. [%s]", err.Error())
+		t.Errorf("Could not create certificate pool. [%s]", err.Error())
+	}
+
+	mqttOptions, err := NewMqttOptions(ctx,
+		WithAwsConfig(cfg),
+		WithEndpoint(endpoint),
+		WithCertificatePool(certPool))
+
+	if err != nil {
+		t.Errorf("Could not get MQTT options. [%s]", err.Error())
 		return
 	}
 
-	if wsUrl == "" {
-		t.Errorf("Could not get WebSocket URL")
-		return
-	}
+	connect(t, mqttOptions)
 }
 
-func TestWebSocketConnect(t *testing.T) {
+func TestWithManualConfigAndManualEndpoint(t *testing.T) {
 	ctx := context.Background()
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -81,137 +80,57 @@ func TestWebSocketConnect(t *testing.T) {
 		return
 	}
 
-	iotWsConfig := IotWsConfig{
-		AwsConfig: cfg,
-		Endpoint:  endpoint,
-	}
-
-	opts, err := AwsIotWsMqttOptions(ctx, iotWsConfig)
+	mqttOptions, err := NewMqttOptions(ctx, WithAwsConfig(cfg), WithEndpoint(endpoint))
 
 	if err != nil {
-		t.Errorf("Could not get MQTT config. [%s]", err.Error())
+		t.Errorf("Could not get MQTT options. [%s]", err.Error())
 		return
 	}
 
-	opts.SetClientID("test")
+	connect(t, mqttOptions)
+}
 
-	client := mqtt.NewClient(opts)
+func TestWithManualConfigAndAutoEndpoint(t *testing.T) {
+	ctx := context.Background()
+
+	cfg, err := config.LoadDefaultConfig(ctx)
+
+	if err != nil {
+		panic("configuration error, " + err.Error())
+	}
+
+	mqttOptions, err := NewMqttOptions(ctx, WithAwsConfig(cfg))
+
+	if err != nil {
+		t.Errorf("Could not get MQTT options. [%s]", err.Error())
+		return
+	}
+
+	connect(t, mqttOptions)
+}
+
+func TestWithAutoConfigAndAutoEndpoint(t *testing.T) {
+	ctx := context.Background()
+
+	mqttOptions, err := NewMqttOptions(ctx)
+
+	if err != nil {
+		t.Errorf("Could not get MQTT options. [%s]", err.Error())
+		return
+	}
+
+	connect(t, mqttOptions)
+}
+
+func connect(t *testing.T, mqttOptions *mqtt.ClientOptions) {
+	mqttOptions.SetClientID("test")
+
+	client := mqtt.NewClient(mqttOptions)
 
 	token := client.Connect()
 
 	if token.Wait() && token.Error() != nil {
-		t.Errorf("Could not connect to WebSocket URL. [%s]", token.Error())
-		return
-	}
-}
-
-func TestWebSocketConnectWithEndpointDiscovery(t *testing.T) {
-	ctx := context.Background()
-
-	cfg, err := config.LoadDefaultConfig(ctx)
-
-	if err != nil {
-		panic("configuration error, " + err.Error())
-	}
-
-	iotWsConfig := IotWsConfig{
-		AwsConfig: cfg,
-	}
-
-	opts, err := AwsIotWsMqttOptions(ctx, iotWsConfig)
-
-	if err != nil {
-		t.Errorf("Could not get MQTT config. [%s]", err.Error())
-		return
-	}
-
-	opts.SetClientID("test")
-
-	client := mqtt.NewClient(opts)
-
-	token := client.Connect()
-
-	if token.Wait() && token.Error() != nil {
-		t.Errorf("Could not connect to WebSocket URL. [%s]", token.Error())
-		return
-	}
-}
-
-func TestWebSocketConnectWithBadCustomCertificatePool(t *testing.T) {
-	ctx := context.Background()
-
-	cfg, err := config.LoadDefaultConfig(ctx)
-
-	if err != nil {
-		panic("configuration error, " + err.Error())
-	}
-
-	iotWsConfig := IotWsConfig{
-		AwsConfig: cfg,
-	}
-
-	certificatePool := x509.NewCertPool()
-	opts, err := AwsIotWsMqttOptionsCustom(ctx, iotWsConfig, certificatePool)
-
-	if err != nil {
-		t.Errorf("Could not get MQTT config. [%s]", err.Error())
-		return
-	}
-
-	opts.SetClientID("test")
-
-	client := mqtt.NewClient(opts)
-
-	token := client.Connect()
-
-	token.Wait()
-
-	if token.Error() == nil {
-		t.Errorf("Connected to WebSocket URL without a valid root CA. This is a bug.")
-		return
-	}
-
-	if !strings.Contains(token.Error().Error(), "x509: certificate signed by unknown authority") {
-		t.Errorf("Didn't get the expected error for this test. Expected TLS error, got [%s]", token.Error())
-		return
-	}
-}
-
-func TestWebSocketConnectWithGoodCustomCertificatePool(t *testing.T) {
-	ctx := context.Background()
-
-	cfg, err := config.LoadDefaultConfig(ctx)
-
-	if err != nil {
-		panic("configuration error, " + err.Error())
-	}
-
-	iotWsConfig := IotWsConfig{
-		AwsConfig: cfg,
-	}
-
-	certificatePool := x509.NewCertPool()
-
-	if ok := certificatePool.AppendCertsFromPEM([]byte(rootCa)); !ok {
-		t.Errorf("failed to add root CA certificate to certificate pool")
-	}
-
-	opts, err := AwsIotWsMqttOptionsCustom(ctx, iotWsConfig, certificatePool)
-
-	if err != nil {
-		t.Errorf("Could not get MQTT config. [%s]", err.Error())
-	}
-
-	opts.SetClientID("test")
-
-	client := mqtt.NewClient(opts)
-
-	token := client.Connect()
-
-	token.Wait()
-
-	if token.Error() != nil {
-		t.Errorf("Failed to connect to WebSocket URL with a valid, custom root CA. This is a bug.")
+		t.Errorf("Could not connect to MQTT over WebSockets. [%s]", token.Error())
 		return
 	}
 }

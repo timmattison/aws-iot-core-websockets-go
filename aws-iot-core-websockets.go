@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iot"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"net/url"
@@ -17,20 +18,54 @@ import (
 )
 
 type IotWsConfig struct {
-	AwsConfig aws.Config
-	Endpoint  string
+	AwsConfig       *aws.Config
+	Endpoint        string
+	CertificatePool *x509.CertPool
 }
+
+type Option func(*IotWsConfig)
 
 const (
 	emptyStringHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
-// AwsIotWsMqttOptionsCustom AwsIotWsMqttOptions creates a new MQTT client options object for connecting to AWS IoT Core via WebSockets.
-// The options object will have the broker URL and TLS config set but not the client ID. The TLS config will
-// utilize the certificate pool passed into it but will not use the AWS root CA certificate automatically.
-func AwsIotWsMqttOptionsCustom(ctx context.Context, iotWsConfig IotWsConfig, certificatePool *x509.CertPool) (*mqtt.ClientOptions, error) {
+func WithEndpoint(endpoint string) Option {
+	return func(iotWsConfig *IotWsConfig) {
+		iotWsConfig.Endpoint = endpoint
+	}
+}
+
+func WithAwsConfig(cfg aws.Config) Option {
+	return func(iotWsConfig *IotWsConfig) {
+		iotWsConfig.AwsConfig = &cfg
+	}
+}
+
+func WithCertificatePool(certPool *x509.CertPool) Option {
+	return func(iotWsConfig *IotWsConfig) {
+		iotWsConfig.CertificatePool = certPool
+	}
+}
+
+func NewMqttOptions(ctx context.Context, opts ...Option) (*mqtt.ClientOptions, error) {
+	iotWsConfig := IotWsConfig{}
+
+	for _, opt := range opts {
+		opt(&iotWsConfig)
+	}
+
+	if iotWsConfig.AwsConfig == nil {
+		cfg, err := config.LoadDefaultConfig(ctx)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to load default config. [%w]", err)
+		}
+
+		iotWsConfig.AwsConfig = &cfg
+	}
+
 	if iotWsConfig.Endpoint == "" {
-		endpoint, err := getEndpoint(ctx, iotWsConfig.AwsConfig)
+		endpoint, err := getEndpoint(ctx, *iotWsConfig.AwsConfig)
 
 		if err != nil {
 			return nil, fmt.Errorf("could not get endpoint. [%s]", err.Error())
@@ -39,33 +74,30 @@ func AwsIotWsMqttOptionsCustom(ctx context.Context, iotWsConfig IotWsConfig, cer
 		iotWsConfig.Endpoint = endpoint
 	}
 
-	wsUrl, err := AwsIotWsUrl(ctx, iotWsConfig)
+	if iotWsConfig.CertificatePool == nil {
+		certPool, err := createCertificatePool()
+
+		if err != nil {
+			return nil, fmt.Errorf("could not create certificate pool. [%s]", err.Error())
+		}
+
+		iotWsConfig.CertificatePool = certPool
+	}
+
+	wsUrl, err := awsIotWsUrl(ctx, iotWsConfig)
 
 	if err != nil {
 		return nil, fmt.Errorf("could not get WebSocket URL. [%s]", err.Error())
 	}
 
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker(wsUrl)
-	opts.SetTLSConfig(&tls.Config{RootCAs: certificatePool})
+	mqttClientOpts := mqtt.NewClientOptions()
+	mqttClientOpts.AddBroker(wsUrl)
+	mqttClientOpts.SetTLSConfig(&tls.Config{RootCAs: iotWsConfig.CertificatePool})
 
-	return opts, nil
+	return mqttClientOpts, nil
 }
 
-// AwsIotWsMqttOptions creates a new MQTT client options object for connecting to AWS IoT Core via WebSockets.
-// The options object will have the broker URL and TLS config set but not the client ID. The TLS config will
-// utilize the AWS root CA certificate automatically.
-func AwsIotWsMqttOptions(ctx context.Context, iotWsConfig IotWsConfig) (*mqtt.ClientOptions, error) {
-	certificatePool, err := createCertificatePool()
-
-	if err != nil {
-		return nil, fmt.Errorf("could not create certificate pool. [%s]", err.Error())
-	}
-
-	return AwsIotWsMqttOptionsCustom(ctx, iotWsConfig, certificatePool)
-}
-
-func AwsIotWsUrl(ctx context.Context, iotWsConfig IotWsConfig) (string, error) {
+func awsIotWsUrl(ctx context.Context, iotWsConfig IotWsConfig) (string, error) {
 	credentials, err := iotWsConfig.AwsConfig.Credentials.Retrieve(ctx)
 
 	if err != nil {
