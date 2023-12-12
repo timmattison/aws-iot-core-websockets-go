@@ -27,6 +27,7 @@ func TestCredentialsAreValid(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not authenticate to AWS APIs. This is likely due to credentials missing or having expired. [%s]", err.Error())
+		return
 	}
 }
 
@@ -43,6 +44,7 @@ func TestGetWebSocketUrl(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not get endpoint. [%s]", err.Error())
+		return
 	}
 
 	iotWsConfig := IotWsConfig{
@@ -54,10 +56,12 @@ func TestGetWebSocketUrl(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not get WebSocket URL. [%s]", err.Error())
+		return
 	}
 
 	if wsUrl == "" {
 		t.Errorf("Could not get WebSocket URL")
+		return
 	}
 }
 
@@ -74,6 +78,7 @@ func TestWebSocketConnect(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not get endpoint. [%s]", err.Error())
+		return
 	}
 
 	iotWsConfig := IotWsConfig{
@@ -85,6 +90,7 @@ func TestWebSocketConnect(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not get MQTT config. [%s]", err.Error())
+		return
 	}
 
 	opts.SetClientID("test")
@@ -95,6 +101,7 @@ func TestWebSocketConnect(t *testing.T) {
 
 	if token.Wait() && token.Error() != nil {
 		t.Errorf("Could not connect to WebSocket URL. [%s]", token.Error())
+		return
 	}
 }
 
@@ -115,6 +122,7 @@ func TestWebSocketConnectWithEndpointDiscovery(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not get MQTT config. [%s]", err.Error())
+		return
 	}
 
 	opts.SetClientID("test")
@@ -125,6 +133,7 @@ func TestWebSocketConnectWithEndpointDiscovery(t *testing.T) {
 
 	if token.Wait() && token.Error() != nil {
 		t.Errorf("Could not connect to WebSocket URL. [%s]", token.Error())
+		return
 	}
 }
 
