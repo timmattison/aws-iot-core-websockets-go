@@ -12,6 +12,15 @@ I created a similar library for Java when I was working at AWS and I wanted to d
 
 # Version history
 
+## 0.5.0
+
+**TL;DR - certificate based authentication with "real" MQTT added**
+
+I guess it's no longer just WebSockets. Now can you do "real" MQTT.
+
+You can also specify the port number when using certificates but it doesn't appear that the Golang Paho MQTT library
+supports ALPN, so you can't use port 443 with AWS IoT.
+
 ## 0.4.0
 
 **TL;DR - new pattern to get the MQTT config directly**

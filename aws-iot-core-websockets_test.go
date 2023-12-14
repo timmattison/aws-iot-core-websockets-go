@@ -122,6 +122,20 @@ func TestWithAutoConfigAndAutoEndpoint(t *testing.T) {
 	connect(t, mqttOptions)
 }
 
+func TestWithClientCertificateFile(t *testing.T) {
+	// NOTE: This test connects with "normal" MQTT, not MQTT over WebSockets.
+	ctx := context.Background()
+
+	mqttOptions, err := NewMqttOptions(ctx, WithClientCertificateFile("certificate.pem", "private.key"))
+
+	if err != nil {
+		t.Errorf("Could not get MQTT options. [%s]", err.Error())
+		return
+	}
+
+	connect(t, mqttOptions)
+}
+
 func connect(t *testing.T, mqttOptions *mqtt.ClientOptions) {
 	mqttOptions.SetClientID("test")
 
@@ -130,7 +144,7 @@ func connect(t *testing.T, mqttOptions *mqtt.ClientOptions) {
 	token := client.Connect()
 
 	if token.Wait() && token.Error() != nil {
-		t.Errorf("Could not connect to MQTT over WebSockets. [%s]", token.Error())
+		t.Errorf("Could not connect to broker. [%s]", token.Error())
 		return
 	}
 }

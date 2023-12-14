@@ -18,9 +18,11 @@ import (
 )
 
 type IotWsConfig struct {
-	AwsConfig       *aws.Config
-	Endpoint        string
-	CertificatePool *x509.CertPool
+	AwsConfig         *aws.Config
+	Endpoint          string
+	CertificatePool   *x509.CertPool
+	ClientCertificate *tls.Certificate
+	Port              int
 }
 
 type Option func(*IotWsConfig)
@@ -44,6 +46,29 @@ func WithAwsConfig(cfg aws.Config) Option {
 func WithCertificatePool(certPool *x509.CertPool) Option {
 	return func(iotWsConfig *IotWsConfig) {
 		iotWsConfig.CertificatePool = certPool
+	}
+}
+
+func WithClientCertificate(cert tls.Certificate) Option {
+	return func(iotWsConfig *IotWsConfig) {
+		iotWsConfig.ClientCertificate = &cert
+	}
+}
+
+func WithClientCertificateFile(certFile string, keyFile string) Option {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Reusing this function so that testing this function will always test the other
+	return WithClientCertificate(cert)
+}
+
+func WithPort(port int) Option {
+	return func(iotWsConfig *IotWsConfig) {
+		iotWsConfig.Port = port
 	}
 }
 
@@ -84,15 +109,38 @@ func NewMqttOptions(ctx context.Context, opts ...Option) (*mqtt.ClientOptions, e
 		iotWsConfig.CertificatePool = certPool
 	}
 
-	wsUrl, err := awsIotWsUrl(ctx, iotWsConfig)
+	if iotWsConfig.Port != 0 && iotWsConfig.ClientCertificate != nil {
+		return nil, fmt.Errorf("port can only be specified when using client certificates for MQTT")
+	}
 
-	if err != nil {
-		return nil, fmt.Errorf("could not get WebSocket URL. [%s]", err.Error())
+	var brokerUrl string
+
+	var clientCertificates []tls.Certificate
+
+	if iotWsConfig.ClientCertificate != nil {
+		clientCertificates = append(clientCertificates, *iotWsConfig.ClientCertificate)
+
+		if iotWsConfig.Port == 0 {
+			iotWsConfig.Port = 8883
+		}
+
+		brokerUrl = fmt.Sprintf("mqtts://%s:%d", iotWsConfig.Endpoint, iotWsConfig.Port)
+	} else {
+		var err error
+		brokerUrl, err = awsIotWsUrl(ctx, iotWsConfig)
+
+		if err != nil {
+			return nil, fmt.Errorf("could not get WebSocket URL. [%s]", err.Error())
+		}
 	}
 
 	mqttClientOpts := mqtt.NewClientOptions()
-	mqttClientOpts.AddBroker(wsUrl)
-	mqttClientOpts.SetTLSConfig(&tls.Config{RootCAs: iotWsConfig.CertificatePool})
+	mqttClientOpts.AddBroker(brokerUrl)
+
+	mqttClientOpts.SetTLSConfig(&tls.Config{
+		RootCAs:      iotWsConfig.CertificatePool,
+		Certificates: clientCertificates,
+	})
 
 	return mqttClientOpts, nil
 }
