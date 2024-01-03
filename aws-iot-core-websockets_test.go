@@ -52,9 +52,10 @@ func TestWithManualConfigAndManualEndpointAndManualCertPool(t *testing.T) {
 	}
 
 	mqttOptions, err := NewMqttOptions(ctx,
-		WithAwsConfig(cfg),
-		WithEndpoint(endpoint),
-		WithCertificatePool(certPool))
+		NewOptions().
+			WithAwsConfig(cfg).
+			WithEndpoint(endpoint).
+			WithCertificatePool(certPool))
 
 	if err != nil {
 		t.Errorf("Could not get MQTT options. [%s]", err.Error())
@@ -80,7 +81,10 @@ func TestWithManualConfigAndManualEndpoint(t *testing.T) {
 		return
 	}
 
-	mqttOptions, err := NewMqttOptions(ctx, WithAwsConfig(cfg), WithEndpoint(endpoint))
+	mqttOptions, err := NewMqttOptions(ctx,
+		NewOptions().
+			WithAwsConfig(cfg).
+			WithEndpoint(endpoint))
 
 	if err != nil {
 		t.Errorf("Could not get MQTT options. [%s]", err.Error())
@@ -99,7 +103,9 @@ func TestWithManualConfigAndAutoEndpoint(t *testing.T) {
 		panic("configuration error, " + err.Error())
 	}
 
-	mqttOptions, err := NewMqttOptions(ctx, WithAwsConfig(cfg))
+	mqttOptions, err := NewMqttOptions(ctx,
+		NewOptions().
+			WithAwsConfig(cfg))
 
 	if err != nil {
 		t.Errorf("Could not get MQTT options. [%s]", err.Error())
@@ -112,7 +118,7 @@ func TestWithManualConfigAndAutoEndpoint(t *testing.T) {
 func TestWithAutoConfigAndAutoEndpoint(t *testing.T) {
 	ctx := context.Background()
 
-	mqttOptions, err := NewMqttOptions(ctx)
+	mqttOptions, err := NewMqttOptions(ctx, NewOptions())
 
 	if err != nil {
 		t.Errorf("Could not get MQTT options. [%s]", err.Error())
@@ -126,7 +132,9 @@ func TestWithClientCertificateFile(t *testing.T) {
 	// NOTE: This test connects with "normal" MQTT, not MQTT over WebSockets.
 	ctx := context.Background()
 
-	mqttOptions, err := NewMqttOptions(ctx, WithClientCertificateFile("certificate.pem", "private.key"))
+	mqttOptions, err := NewMqttOptions(ctx,
+		NewOptions().
+			WithClientCertificateFile("certificate.pem", "private.key"))
 
 	if err != nil {
 		t.Errorf("Could not get MQTT options. [%s]", err.Error())

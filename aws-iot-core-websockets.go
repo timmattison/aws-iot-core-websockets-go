@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-type IotWsConfig struct {
+type Options struct {
 	AwsConfig         *aws.Config
 	Endpoint          string
 	CertificatePool   *x509.CertPool
@@ -25,37 +25,37 @@ type IotWsConfig struct {
 	Port              int
 }
 
-type Option func(*IotWsConfig)
-
 const (
 	emptyStringHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
-func WithEndpoint(endpoint string) Option {
-	return func(iotWsConfig *IotWsConfig) {
-		iotWsConfig.Endpoint = endpoint
-	}
+func NewOptions() Options {
+	return Options{}
 }
 
-func WithAwsConfig(cfg aws.Config) Option {
-	return func(iotWsConfig *IotWsConfig) {
-		iotWsConfig.AwsConfig = &cfg
-	}
+func (options Options) WithEndpoint(endpoint string) Options {
+	options.Endpoint = endpoint
+	return options
 }
 
-func WithCertificatePool(certPool *x509.CertPool) Option {
-	return func(iotWsConfig *IotWsConfig) {
-		iotWsConfig.CertificatePool = certPool
-	}
+func (options Options) WithAwsConfig(cfg aws.Config) Options {
+	options.AwsConfig = &cfg
+
+	return options
 }
 
-func WithClientCertificate(cert tls.Certificate) Option {
-	return func(iotWsConfig *IotWsConfig) {
-		iotWsConfig.ClientCertificate = &cert
-	}
+func (options Options) WithCertificatePool(certPool *x509.CertPool) Options {
+	options.CertificatePool = certPool
+
+	return options
 }
 
-func WithClientCertificateFile(certFile string, keyFile string) Option {
+func (options Options) WithClientCertificate(cert tls.Certificate) Options {
+	options.ClientCertificate = &cert
+	return options
+}
+
+func (options Options) WithClientCertificateFile(certFile string, keyFile string) Options {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 
 	if err != nil {
@@ -63,53 +63,47 @@ func WithClientCertificateFile(certFile string, keyFile string) Option {
 	}
 
 	// Reusing this function so that testing this function will always test the other
-	return WithClientCertificate(cert)
+	return options.WithClientCertificate(cert)
 }
 
-func WithPort(port int) Option {
-	return func(iotWsConfig *IotWsConfig) {
-		iotWsConfig.Port = port
-	}
+func (options Options) WithPort(port int) Options {
+	options.Port = port
+
+	return options
 }
 
-func NewMqttOptions(ctx context.Context, opts ...Option) (*mqtt.ClientOptions, error) {
-	iotWsConfig := IotWsConfig{}
-
-	for _, opt := range opts {
-		opt(&iotWsConfig)
-	}
-
-	if iotWsConfig.AwsConfig == nil {
+func NewMqttOptions(ctx context.Context, options Options) (*mqtt.ClientOptions, error) {
+	if options.AwsConfig == nil {
 		cfg, err := config.LoadDefaultConfig(ctx)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to load default config. [%w]", err)
 		}
 
-		iotWsConfig.AwsConfig = &cfg
+		options.AwsConfig = &cfg
 	}
 
-	if iotWsConfig.Endpoint == "" {
-		endpoint, err := getEndpoint(ctx, *iotWsConfig.AwsConfig)
+	if options.Endpoint == "" {
+		endpoint, err := getEndpoint(ctx, *options.AwsConfig)
 
 		if err != nil {
 			return nil, fmt.Errorf("could not get endpoint. [%s]", err.Error())
 		}
 
-		iotWsConfig.Endpoint = endpoint
+		options.Endpoint = endpoint
 	}
 
-	if iotWsConfig.CertificatePool == nil {
+	if options.CertificatePool == nil {
 		certPool, err := createCertificatePool()
 
 		if err != nil {
 			return nil, fmt.Errorf("could not create certificate pool. [%s]", err.Error())
 		}
 
-		iotWsConfig.CertificatePool = certPool
+		options.CertificatePool = certPool
 	}
 
-	if iotWsConfig.Port != 0 && iotWsConfig.ClientCertificate == nil {
+	if options.Port != 0 && options.ClientCertificate == nil {
 		return nil, fmt.Errorf("port can only be specified when using client certificates for MQTT")
 	}
 
@@ -117,17 +111,17 @@ func NewMqttOptions(ctx context.Context, opts ...Option) (*mqtt.ClientOptions, e
 
 	var clientCertificates []tls.Certificate
 
-	if iotWsConfig.ClientCertificate != nil {
-		clientCertificates = append(clientCertificates, *iotWsConfig.ClientCertificate)
+	if options.ClientCertificate != nil {
+		clientCertificates = append(clientCertificates, *options.ClientCertificate)
 
-		if iotWsConfig.Port == 0 {
-			iotWsConfig.Port = 8883
+		if options.Port == 0 {
+			options.Port = 8883
 		}
 
-		brokerUrl = fmt.Sprintf("mqtts://%s:%d", iotWsConfig.Endpoint, iotWsConfig.Port)
+		brokerUrl = fmt.Sprintf("mqtts://%s:%d", options.Endpoint, options.Port)
 	} else {
 		var err error
-		brokerUrl, err = awsIotWsUrl(ctx, iotWsConfig)
+		brokerUrl, err = awsIotWsUrl(ctx, options)
 
 		if err != nil {
 			return nil, fmt.Errorf("could not get WebSocket URL. [%s]", err.Error())
@@ -138,15 +132,15 @@ func NewMqttOptions(ctx context.Context, opts ...Option) (*mqtt.ClientOptions, e
 	mqttClientOpts.AddBroker(brokerUrl)
 
 	mqttClientOpts.SetTLSConfig(&tls.Config{
-		RootCAs:      iotWsConfig.CertificatePool,
+		RootCAs:      options.CertificatePool,
 		Certificates: clientCertificates,
 	})
 
 	return mqttClientOpts, nil
 }
 
-func awsIotWsUrl(ctx context.Context, iotWsConfig IotWsConfig) (string, error) {
-	credentials, err := iotWsConfig.AwsConfig.Credentials.Retrieve(ctx)
+func awsIotWsUrl(ctx context.Context, options Options) (string, error) {
+	credentials, err := options.AwsConfig.Credentials.Retrieve(ctx)
 
 	if err != nil {
 		return "", err
@@ -158,7 +152,7 @@ func awsIotWsUrl(ctx context.Context, iotWsConfig IotWsConfig) (string, error) {
 	dateLong := now.Format("20060102T150405Z")
 	dateShort := dateLong[:8]
 	serviceName := "iotdevicegateway"
-	scope := fmt.Sprintf("%s/%s/%s/aws4_request", dateShort, iotWsConfig.AwsConfig.Region, serviceName)
+	scope := fmt.Sprintf("%s/%s/%s/aws4_request", dateShort, options.AwsConfig.Region, serviceName)
 	alg := "AWS4-HMAC-SHA256"
 	q := [][2]string{
 		{"X-Amz-Algorithm", alg},
@@ -169,11 +163,11 @@ func awsIotWsUrl(ctx context.Context, iotWsConfig IotWsConfig) (string, error) {
 
 	query := awsQueryParams(q)
 
-	signKey := awsSignKey(credentials.SecretAccessKey, dateShort, iotWsConfig.AwsConfig.Region, serviceName)
-	stringToSign := awsSignString(query, iotWsConfig.Endpoint, dateLong, alg, scope)
+	signKey := awsSignKey(credentials.SecretAccessKey, dateShort, options.AwsConfig.Region, serviceName)
+	stringToSign := awsSignString(query, options.Endpoint, dateLong, alg, scope)
 	signature := fmt.Sprintf("%x", awsHmac(signKey, []byte(stringToSign)))
 
-	wsUrl := fmt.Sprintf("wss://%s/mqtt?%s&X-Amz-Signature=%s", iotWsConfig.Endpoint, query, signature)
+	wsUrl := fmt.Sprintf("wss://%s/mqtt?%s&X-Amz-Signature=%s", options.Endpoint, query, signature)
 
 	if credentials.SessionToken != "" {
 		wsUrl = fmt.Sprintf("%s&X-Amz-Security-Token=%s", wsUrl, url.QueryEscape(credentials.SessionToken))
