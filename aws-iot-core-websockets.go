@@ -109,7 +109,7 @@ func NewMqttOptions(ctx context.Context, opts ...Option) (*mqtt.ClientOptions, e
 		iotWsConfig.CertificatePool = certPool
 	}
 
-	if iotWsConfig.Port != 0 && iotWsConfig.ClientCertificate != nil {
+	if iotWsConfig.Port != 0 && iotWsConfig.ClientCertificate == nil {
 		return nil, fmt.Errorf("port can only be specified when using client certificates for MQTT")
 	}
 
